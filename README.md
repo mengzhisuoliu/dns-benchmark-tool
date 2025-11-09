@@ -5,7 +5,7 @@
 [![Publish to PyPI](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/pypi.yml/badge.svg)](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/pypi.yml)
 [![PyPI version](https://img.shields.io/pypi/v/dns-benchmark-tool.svg)](https://pypi.org/project/dns-benchmark-tool/)
 
-![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)
+![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen.svg)
 

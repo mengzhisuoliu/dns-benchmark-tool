@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dns-benchmark-tool"
-version = "0.1.3"
+version = "0.1.4"
 description = "Benchmark DNS resolvers across domains and record types with analytics and reports (CSV, Excel, PDF, JSON)."
 readme = "README-pypi.md"
 authors = [
     { name = "Joseph Oseh Frank", email = "frank@osehfrank.com" }
 ]
 license = { text = "MIT" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 
 dependencies = [
     "dnspython>=2.7,<3.0",       

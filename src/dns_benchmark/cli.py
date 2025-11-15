@@ -291,7 +291,6 @@ def reset_feedback() -> None:
 )
 @click.option("--error-breakdown", is_flag=True, help="Include error breakdown")
 @click.option("--json", "json_output", is_flag=True, help="Export results to JSON")
-# NEW options
 @click.option("--iterations", "-i", default=1, help="Number of iterations")
 @click.option("--warmup", is_flag=True, help="Run warmup queries before benchmark")
 @click.option("--use-cache", is_flag=True, help="Allow cache usage across iterations")
@@ -299,6 +298,10 @@ def reset_feedback() -> None:
     "--warmup-fast",
     is_flag=True,
     help="Run lightweight warmup (one probe per resolver)",
+)
+# NEW OPTION - Add this line
+@click.option(
+    "--include-charts", is_flag=True, help="Include charts in Excel and PDF exports"
 )
 def benchmark(
     resolvers: Optional[str],
@@ -319,6 +322,7 @@ def benchmark(
     warmup: bool,
     warmup_fast: bool,
     use_cache: bool,
+    include_charts: bool,  # NEW
 ) -> None:
     """Run DNS benchmark test."""
 
@@ -546,6 +550,7 @@ def benchmark(
                     domain_stats=domain_stats_data,
                     record_type_stats=record_type_stats_data,
                     error_stats=error_stats_data,
+                    include_charts=include_charts,
                 )
                 if export_progress:
                     export_progress.update(1)
@@ -555,7 +560,7 @@ def benchmark(
                     results,
                     analyzer,
                     str(output_path / f"{base_filename}.pdf"),
-                    include_success_chart=True,
+                    include_success_chart=include_charts,
                 )
                 if export_progress:
                     export_progress.update(1)

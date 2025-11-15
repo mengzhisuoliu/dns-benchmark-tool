@@ -154,7 +154,7 @@ class ExcelExporter:
         domain_stats: Optional[List[Dict[str, Any]]] = None,
         record_type_stats: Optional[List[Dict[str, Any]]] = None,
         error_stats: Optional[Dict[str, int]] = None,
-        include_charts: bool = False,  
+        include_charts: bool = False,
     ) -> None:
         wb = Workbook()
         wb.remove(wb.active)

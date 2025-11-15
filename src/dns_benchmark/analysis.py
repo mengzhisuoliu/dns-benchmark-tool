@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, cast
 
+import numpy as np
 import pandas as pd
 
 from dns_benchmark.core import DNSQueryResult, QueryStatus
@@ -24,6 +25,8 @@ class ResolverStats:
     std_latency: float
     p95_latency: float
     p99_latency: float
+    jitter: float = 0.0
+    consistency_score: float = 0.0
 
 
 class BenchmarkAnalyzer:
@@ -49,13 +52,17 @@ class BenchmarkAnalyzer:
                     "answers_count": len(result.answers),
                     "ttl": result.ttl or 0,
                     "error_message": result.error_message or "",
+                    "attempt_number": result.attempt_number,
+                    "cache_hit": result.cache_hit,
+                    "interation": result.iteration,
+                    "query_id": result.query_id,
                 }
             )
 
         return pd.DataFrame(data)
 
     def get_resolver_statistics(self) -> List[ResolverStats]:
-        """Compute statistics per resolver."""
+        """Compute comprehensive statistics per resolver."""
         resolver_stats = []
 
         for resolver_name in self.df["resolver_name"].unique():
@@ -75,6 +82,7 @@ class BenchmarkAnalyzer:
             ]
 
             if len(successful_latencies) > 0:
+                latencies_array = successful_latencies.values
                 min_latency = float(successful_latencies.min())
                 max_latency = float(successful_latencies.max())
                 avg_latency = float(successful_latencies.mean())
@@ -82,11 +90,22 @@ class BenchmarkAnalyzer:
                 std_latency = float(successful_latencies.std())
                 p95_latency = float(successful_latencies.quantile(0.95))
                 p99_latency = float(successful_latencies.quantile(0.99))
+
+                # Calculate jitter (variance in latency)
+                jitter = (
+                    float(np.std(np.diff(latencies_array)))
+                    if len(latencies_array) > 1
+                    else 0.0
+                )
+
+                # Consistency score (inverse of coefficient of variation)
+                cv = std_latency / avg_latency if avg_latency > 0 else 0
+                consistency_score = max(0, 100 - (cv * 100))
             else:
                 min_latency = max_latency = avg_latency = median_latency = (
                     std_latency
                 ) = 0.0
-                p95_latency = p99_latency = 0.0
+                p95_latency = p99_latency = jitter = consistency_score = 0.0
 
             stats = ResolverStats(
                 resolver_name=resolver_name,
@@ -101,6 +120,8 @@ class BenchmarkAnalyzer:
                 std_latency=std_latency,
                 p95_latency=p95_latency,
                 p99_latency=p99_latency,
+                jitter=jitter,
+                consistency_score=consistency_score,
             )
 
             resolver_stats.append(stats)
@@ -120,8 +141,9 @@ class BenchmarkAnalyzer:
         if len(successful_latencies) > 0:
             overall_avg_latency = float(successful_latencies.mean())
             overall_median_latency = float(successful_latencies.median())
+            overall_std_latency = float(successful_latencies.std())
         else:
-            overall_avg_latency = overall_median_latency = 0.0
+            overall_avg_latency = overall_median_latency = overall_std_latency = 0.0
 
         # Rank resolvers by average latency
         resolver_stats = self.get_resolver_statistics()
@@ -136,6 +158,7 @@ class BenchmarkAnalyzer:
             "overall_success_rate": overall_success_rate,
             "overall_avg_latency": overall_avg_latency,
             "overall_median_latency": overall_median_latency,
+            "overall_std_latency": overall_std_latency,
             "fastest_resolver": (
                 ranked_resolvers[0].resolver_name if ranked_resolvers else "N/A"
             ),
@@ -144,6 +167,7 @@ class BenchmarkAnalyzer:
             ),
             "resolver_count": len(resolver_stats),
             "domain_count": len(self.df["domain"].unique()),
+            "record_types": list(self.df["record_type"].unique()),
         }
 
     def get_domain_statistics(self) -> List[Dict[str, Any]]:
@@ -156,6 +180,16 @@ class BenchmarkAnalyzer:
             rate = (success / total) * 100 if total > 0 else 0.0
 
             latencies = dd[dd["success"] == True]["latency_ms"]
+
+            # Find fastest and slowest resolvers for this domain
+            if len(latencies) > 0:
+                fastest_idx = dd[dd["success"] == True]["latency_ms"].idxmin()
+                slowest_idx = dd[dd["success"] == True]["latency_ms"].idxmax()
+                fastest_resolver = dd.loc[fastest_idx, "resolver_name"]
+                slowest_resolver = dd.loc[slowest_idx, "resolver_name"]
+            else:
+                fastest_resolver = slowest_resolver = "N/A"
+
             stats = {
                 "domain": domain,
                 "total_queries": total,
@@ -168,6 +202,8 @@ class BenchmarkAnalyzer:
                 "p95_latency": (
                     float(latencies.quantile(0.95)) if len(latencies) else 0.0
                 ),
+                "fastest_resolver": fastest_resolver,
+                "slowest_resolver": slowest_resolver,
             }
             domain_stats.append(stats)
         return domain_stats

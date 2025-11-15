@@ -44,6 +44,10 @@ class ExportBundle:
                     "error_message": r.error_message,
                     "start_time": r.start_time,
                     "end_time": r.end_time,
+                    "attempt_number": r.attempt_number,
+                    "cache_hit": r.cache_hit,
+                    "iteration": r.iteration,
+                    "query_id": r.query_id,
                 }
                 for r in results
             ],
@@ -77,6 +81,9 @@ class CSVExporter:
                     "answers_count": len(result.answers),
                     "ttl": result.ttl or "",
                     "error_message": result.error_message or "",
+                    "cache_hit": result.cache_hit,
+                    "iteration": result.iteration,
+                    "query_id": result.query_id,
                 }
             )
 
@@ -106,6 +113,8 @@ class CSVExporter:
                     "std_latency_ms": stats.std_latency,
                     "p95_latency_ms": stats.p95_latency,
                     "p99_latency_ms": stats.p99_latency,
+                    "jitter_ms": stats.jitter,
+                    "consistency_score": stats.consistency_score,
                 }
             )
 
@@ -145,25 +154,55 @@ class ExcelExporter:
         domain_stats: Optional[List[Dict[str, Any]]] = None,
         record_type_stats: Optional[List[Dict[str, Any]]] = None,
         error_stats: Optional[Dict[str, int]] = None,
+        include_charts: bool = False,
     ) -> None:
         wb = Workbook()
         wb.remove(wb.active)
-        ExcelExporter._add_raw_data_sheet(wb, results)
-        ExcelExporter._add_resolver_summary_sheet(wb, analyzer)
-        if domain_stats:
-            ExcelExporter._add_simple_table_sheet(
-                wb, "Domain Stats", pd.DataFrame(domain_stats)
-            )
-        if record_type_stats:
-            ExcelExporter._add_simple_table_sheet(
-                wb, "Record Type Stats", pd.DataFrame(record_type_stats)
-            )
-        if error_stats:
-            df = pd.DataFrame(
-                [{"Error": k, "Count": v} for k, v in error_stats.items()]
-            )
-            ExcelExporter._add_simple_table_sheet(wb, "Error Breakdown", df)
-        wb.save(output_path)
+
+        # Temporary directory for chart images
+        temp_dir = None
+        chart_paths = []
+        try:
+            # Add standard sheets
+            ExcelExporter._add_raw_data_sheet(wb, results)
+            ExcelExporter._add_resolver_summary_sheet(wb, analyzer)
+
+            if domain_stats:
+                ExcelExporter._add_simple_table_sheet(
+                    wb, "Domain Stats", pd.DataFrame(domain_stats)
+                )
+            if record_type_stats:
+                ExcelExporter._add_simple_table_sheet(
+                    wb, "Record Type Stats", pd.DataFrame(record_type_stats)
+                )
+            if error_stats:
+                df = pd.DataFrame(
+                    [{"Error": k, "Count": v} for k, v in error_stats.items()]
+                )
+                ExcelExporter._add_simple_table_sheet(wb, "Error Breakdown", df)
+
+            # Add charts if requested
+            if include_charts:
+                temp_dir = tempfile.mkdtemp()
+                chart_paths = ExcelExporter._add_charts_sheet(wb, analyzer, temp_dir)
+
+            # Save workbook before cleaning up temp files
+            wb.save(output_path)
+        finally:
+            # Clean up temporary files after workbook is saved
+            for chart_path in chart_paths:
+                if os.path.exists(chart_path):
+                    try:
+                        os.remove(chart_path)
+                    except OSError:
+                        pass
+
+            # Remove temp directory if it exists
+            if temp_dir and os.path.exists(temp_dir):
+                try:
+                    os.rmdir(temp_dir)
+                except OSError:
+                    pass
 
     @staticmethod
     def _add_simple_table_sheet(wb: Workbook, title: str, df: pd.DataFrame) -> None:
@@ -208,6 +247,9 @@ class ExcelExporter:
                     "Answers Count": len(result.answers),
                     "TTL": result.ttl or "",
                     "Error Message": result.error_message or "",
+                    "Attempts": result.attempt_number,
+                    "Cached": result.cache_hit,
+                    "Iteration": result.iteration,
                 }
             )
 
@@ -265,6 +307,8 @@ class ExcelExporter:
                     "Std Dev (ms)": round(stats.std_latency, 2),
                     "P95 Latency (ms)": round(stats.p95_latency, 2),
                     "P99 Latency (ms)": round(stats.p99_latency, 2),
+                    "Jitter": round(stats.jitter, 2),
+                    "Consistency": round(stats.consistency_score, 2),
                 }
             )
 
@@ -299,6 +343,141 @@ class ExcelExporter:
             adjusted_width = min(max_length + 2, 50)
             ws.column_dimensions[column_letter].width = adjusted_width
 
+    @staticmethod
+    def _add_charts_sheet(
+        wb: Workbook, analyzer: BenchmarkAnalyzer, temp_dir: str
+    ) -> List[str]:
+        """Add a sheet with embedded chart images.
+
+        Returns:
+            List of chart file paths that need to be cleaned up later.
+        """
+        from openpyxl.drawing.image import Image as XLImage
+
+        ws = wb.create_sheet("Charts")
+
+        # Generate charts
+        latency_chart_path = ExcelExporter._generate_latency_chart_for_excel(
+            analyzer, temp_dir
+        )
+        success_chart_path = ExcelExporter._generate_success_chart_for_excel(
+            analyzer, temp_dir
+        )
+
+        # Add title
+        ws["A1"] = "DNS Resolver Performance Charts"
+        ws["A1"].font = Font(bold=True, size=14)
+
+        # Add latency chart
+        ws["A3"] = "Average Latency Comparison"
+        ws["A3"].font = Font(bold=True, size=12)
+        img1 = XLImage(latency_chart_path)
+        img1.width = 600
+        img1.height = 360
+        ws.add_image(img1, "A4")
+
+        # Add success rate chart
+        ws["A24"] = "Success Rate Comparison"
+        ws["A24"].font = Font(bold=True, size=12)
+        img2 = XLImage(success_chart_path)
+        img2.width = 600
+        img2.height = 360
+        ws.add_image(img2, "A25")
+
+        # Return paths for cleanup after workbook is saved
+        return [latency_chart_path, success_chart_path]
+
+    @staticmethod
+    def _generate_latency_chart_for_excel(
+        analyzer: BenchmarkAnalyzer, output_dir: str
+    ) -> str:
+        """Generate latency chart for Excel embedding."""
+        resolver_stats = analyzer.get_resolver_statistics()
+        valid_resolvers = [s for s in resolver_stats if s.successful_queries > 0]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        if not valid_resolvers:
+            ax.text(
+                0.5, 0.5, "No successful queries", ha="center", va="center", fontsize=14
+            )
+            ax.axis("off")
+        else:
+            names = [s.resolver_name for s in valid_resolvers]
+            avg_latencies = [s.avg_latency for s in valid_resolvers]
+            colors = [
+                "#2ecc71" if lat < 50 else "#f39c12" if lat < 100 else "#e74c3c"
+                for lat in avg_latencies
+            ]
+
+            bars = ax.bar(range(len(names)), avg_latencies, color=colors)
+            ax.set_xticks(range(len(names)))
+            ax.set_xticklabels(names, rotation=45, ha="right")
+            ax.set_ylabel("Average Latency (ms)")
+            ax.set_title("DNS Resolver Performance Comparison")
+
+            # Add value labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                ax.annotate(
+                    f"{height:.1f}",
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                )
+
+            ax.grid(True, alpha=0.3, axis="y")
+
+        plt.tight_layout()
+        chart_path = os.path.join(output_dir, "excel_latency_chart.png")
+        plt.savefig(chart_path, dpi=150, bbox_inches="tight")
+        plt.close()
+
+        return chart_path
+
+    @staticmethod
+    def _generate_success_chart_for_excel(
+        analyzer: BenchmarkAnalyzer, output_dir: str
+    ) -> str:
+        """Generate success rate chart for Excel embedding."""
+        resolver_stats = analyzer.get_resolver_statistics()
+        names = [s.resolver_name for s in resolver_stats]
+        rates = [s.success_rate for s in resolver_stats]
+        colors = [
+            "#2ecc71" if r > 95 else "#f39c12" if r > 80 else "#e74c3c" for r in rates
+        ]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bars = ax.bar(range(len(names)), rates, color=colors)
+        ax.set_xticks(range(len(names)))
+        ax.set_xticklabels(names, rotation=45, ha="right")
+        ax.set_ylabel("Success Rate (%)")
+        ax.set_title("DNS Resolver Success Rates")
+        # ax.set_ylim(0, 100)
+
+        # Add value labels
+        for bar in bars:
+            height = bar.get_height()
+            ax.annotate(
+                f"{height:.1f}%",
+                xy=(bar.get_x() + bar.get_width() / 2, height),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+            )
+
+        ax.grid(True, alpha=0.3, axis="y")
+
+        plt.tight_layout()
+        chart_path = os.path.join(output_dir, "excel_success_chart.png")
+        plt.savefig(chart_path, dpi=150, bbox_inches="tight")
+        plt.close()
+
+        return chart_path
+
 
 class PDFExporter:
     """Export DNS benchmark results to PDF format."""
@@ -311,7 +490,9 @@ class PDFExporter:
         include_success_chart: bool = False,
     ) -> None:
         charts_dir = tempfile.mkdtemp()
+
         try:
+            # Generate charts
             latency_chart_path = PDFExporter._generate_latency_chart(
                 analyzer, charts_dir
             )
@@ -320,16 +501,37 @@ class PDFExporter:
                 if include_success_chart
                 else None
             )
+
+            # Convert images to base64 for embedding
+            import base64
+
+            with open(latency_chart_path, "rb") as f:
+                latency_b64 = base64.b64encode(f.read()).decode("utf-8")
+            success_b64 = None
+            if success_chart_path:
+                with open(success_chart_path, "rb") as f:
+                    success_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+            # Generate HTML content with base64 images
             html_content = PDFExporter._generate_html_content(
-                analyzer, latency_chart_path, success_chart_path
+                analyzer, latency_b64, success_b64
             )
+            # Write PDF before cleaning up temp files
             HTML(string=html_content).write_pdf(output_path)
         finally:
+            # Clean up temporary files after PDF is written
             for p in [latency_chart_path, success_chart_path]:
                 if p and os.path.exists(p):
-                    os.remove(p)
+                    try:
+                        os.remove(p)
+                    except OSError:
+                        pass
+
             if os.path.exists(charts_dir):
-                os.rmdir(charts_dir)
+                try:
+                    os.rmdir(charts_dir)
+                except OSError:
+                    pass
 
     @staticmethod
     def _generate_latency_chart(analyzer: BenchmarkAnalyzer, output_dir: str) -> str:
@@ -391,7 +593,7 @@ class PDFExporter:
         ax.set_xticklabels(names, rotation=45, ha="right")
         ax.set_ylabel("Success Rate (%)")
         ax.set_title("DNS Resolver Success Rates")
-        ax.set_ylim(0, 100)
+        # ax.set_ylim(0, 100)
         for bar in bars:
             h = bar.get_height()
             ax.annotate(
@@ -413,8 +615,8 @@ class PDFExporter:
     @staticmethod
     def _generate_html_content(
         analyzer: BenchmarkAnalyzer,
-        latency_chart_path: str,
-        success_chart_path: Optional[str] = None,
+        latency_chart_b64: str,
+        success_chart_b64: Optional[str] = None,
     ) -> str:
         """Generate HTML content for PDF report."""
         resolver_stats = analyzer.get_resolver_statistics()
@@ -430,12 +632,12 @@ class PDFExporter:
 
         # Optional success chart block
         success_block = ""
-        if success_chart_path:
+        if success_chart_b64:
             success_block = f"""
             <div class="section">
                 <h2>Success Rates</h2>
                 <div class="chart">
-                    <img src="{success_chart_path}" alt="DNS Resolver Success Rates">
+                    <img src="data:image/png;base64,{success_chart_b64}" alt="DNS Resolver Success Rates">
                     <p><em>Success rate comparison across DNS resolvers (higher is better)</em></p>
                 </div>
             </div>
@@ -515,7 +717,7 @@ class PDFExporter:
             <div class="section">
                 <h2>Latency Comparison</h2>
                 <div class="chart">
-                    <img src="{latency_chart_path}" alt="Latency Comparison">
+                    <img src="data:image/png;base64,{latency_chart_b64}" alt="Latency Comparison">
                 </div>
             </div>
             {success_block}

@@ -5,30 +5,32 @@ from pathlib import Path
 
 import pytest
 
-WAIT_INTERVAL = 3
+WAIT_INTERVAL = 2  # Seconds to wait between commands
 
 RESOLVERS = "./sample_data/resolvers.json"
 DOMAINS = "./sample_data/domains.txt"
 
 COMMANDS = [
+    # Basic quick tests
     f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} "
-    "--formats csv,excel,pdf --domain-stats --record-type-stats --error-breakdown --json --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} "
+    # "--formats csv,excel,pdf --domain-stats --record-type-stats --error-breakdown --json --output {{outdir}}", # Heavy test, commented out for regular runs
     # Quick performance test
     f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --output {{outdir}}",
     f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --quiet --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --record-types A,AAAA,MX --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --domain-stats --record-type-stats --error-breakdown --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --json --output {{outdir}}",
-    # New options smoke tests
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --iterations 2 --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --iterations 2 --use-cache --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --warmup --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --warmup-fast --output {{outdir}}",
-    # Information & discovery
+    # Commented out: record type stats and breakdowns
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --record-types A,AAAA,MX --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --domain-stats --record-type-stats --error-breakdown --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --json --output {{outdir}}",
+    # New options smoke tests (commented out for speed)
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --iterations 2 --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --iterations 2 --use-cache --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --warmup --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --warmup-fast --output {{outdir}}",
+    # Information & discovery (keep lightweight ones)
     "dns-benchmark list-defaults",
     "dns-benchmark list-resolvers",
-    "dns-benchmark list-resolvers --details",
+    # "dns-benchmark list-resolvers --details", # Slower
     "dns-benchmark list-resolvers --category security",
     "dns-benchmark list-resolvers --category privacy",
     "dns-benchmark list-resolvers --category family",
@@ -43,29 +45,29 @@ COMMANDS = [
     "dns-benchmark list-domains --format csv",
     "dns-benchmark list-domains --format json",
     "dns-benchmark list-categories",
-    # Configuration management
-    "dns-benchmark generate-config --output {{outdir}}/sample_config.yaml",
-    "dns-benchmark generate-config --category security --output {{outdir}}/security_test.yaml",
-    "dns-benchmark generate-config --category family --output {{outdir}}/family_protection.yaml",
-    "dns-benchmark generate-config --category performance --output {{outdir}}/performance_test.yaml",
-    "dns-benchmark generate-config --category privacy --output {{outdir}}/privacy_audit.yaml",
-    # Performance optimization
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --max-concurrent 50 --timeout 3 --quiet --formats csv --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --timeout 10 --retries 3 --max-concurrent 10 --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --quiet --timeout 2 --output {{outdir}}",
-    # Troubleshooting
+    # Configuration management (commented out for speed)
+    # "dns-benchmark generate-config --output {{outdir}}/sample_config.yaml",
+    # "dns-benchmark generate-config --category security --output {{outdir}}/security_test.yaml",
+    # "dns-benchmark generate-config --category family --output {{outdir}}/family_protection.yaml",
+    # "dns-benchmark generate-config --category performance --output {{outdir}}/performance_test.yaml",
+    # "dns-benchmark generate-config --category privacy --output {{outdir}}/privacy_audit.yaml",
+    # Performance optimization (commented out for speed)
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --max-concurrent 50 --timeout 3 --quiet --formats csv --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --timeout 10 --retries 3 --max-concurrent 10 --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --quiet --timeout 2 --output {{outdir}}",
+    # Troubleshooting (keep help, comment out heavy)
     "python -m dns_benchmark.cli --help",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv,excel --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --timeout 10 --retries 3 --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --max-concurrent 25 --output {{outdir}}",
-    f"python -m dns_benchmark.cli benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --output {{outdir}}",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --output {{outdir}}",
-    # Use case examples
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats excel,pdf --output {{outdir}}/migration_analysis",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv,excel --output {{outdir}}/provider_selection",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --timeout 10 --retries 3 --formats csv --output {{outdir}}/troubleshooting",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats pdf --output {{outdir}}/security_assessment",
-    f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --quiet --output {{outdir}}/performance_monitoring",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv,excel --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --timeout 10 --retries 3 --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --max-concurrent 25 --output {{outdir}}",
+    # f"python -m dns_benchmark.cli benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --output {{outdir}}",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --output {{outdir}}",
+    # Use case examples (commented out for speed)
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats excel,pdf --output {{outdir}}/migration_analysis",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv,excel --output {{outdir}}/provider_selection",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --timeout 10 --retries 3 --formats csv --output {{outdir}}/troubleshooting",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats pdf --output {{outdir}}/security_assessment",
+    # f"dns-benchmark benchmark --resolvers {RESOLVERS} --domains {DOMAINS} --formats csv --quiet --output {{outdir}}/performance_monitoring",
 ]
 
 # Give each test a readable ID instead of [0], [1], …

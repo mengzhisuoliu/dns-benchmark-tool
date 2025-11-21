@@ -44,7 +44,16 @@ dns-benchmark monitoring --use-defaults --interval 30 --duration 3600 \
   --alert-latency 150 --alert-failure-rate 5 --output monitor.log
 ```
 
+## 📈 Community Highlights
+
+- ⭐ Stars: Grew from 7 → 110+ after posting on Hacker News  
+- 📦 Downloads: Rebounded to 200+/day after initially stalling  
+- 🐘 Mastodon: Shared there too, but the real surge came from HN  
+- 💬 Feedback: Constructive input from HN community directly shaped patches v0.3.0 → v0.3.1
+- 🚀 Takeaway: Hacker News visibility was the catalyst for adoption momentum
+
 ---
+
 [![CI Tests](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/test.yml/badge.svg)](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/test.yml)
 [![Publish to TestPyPI](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/testpypi.yml/badge.svg)](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/testpypi.yml)
 [![Publish to PyPI](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/pypi.yml/badge.svg)](https://github.com/frankovo/dns-benchmark-tool/actions/workflows/pypi.yml)
@@ -66,6 +75,7 @@ dns-benchmark monitoring --use-defaults --interval 30 --duration 3600 \
 - [DNS Benchmark Tool](#dns-benchmark-tool)
   - [Part of BuildTools - Network Performance Suite](#part-of-buildtools---network-performance-suite)
   - [🎉 Today’s Release Highlights ](#-todays-release-highlights-)
+  - [📈 Community Highlights](#-community-highlights)
   - [Table of Contents](#table-of-contents)
   - [🎯 Why This Tool?](#-why-this-tool)
     - [The Problem](#the-problem)

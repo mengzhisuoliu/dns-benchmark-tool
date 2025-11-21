@@ -1,8 +1,10 @@
-<p align="center">
-  <h1>DNS Benchmark Tool</h1>
-  <strong>Fast, comprehensive DNS performance testing</strong><br>
-  Part of <a href="https://buildtools.net">BuildTools</a> - Network Performance Suite
-</p>
+<div align="center">
+
+# DNS Benchmark Tool
+
+**Fast, comprehensive DNS performance testing**
+
+Part of [BuildTools](https://buildtools.net) - Network Performance Suite
 
 ```bash
 pip install dns-benchmark-tool
@@ -13,7 +15,7 @@ dns-benchmark benchmark --use-defaults
 
 > 🎉 **1,400+ downloads this week!** Thank you to our growing community.  
 
-</p>
+</div>
 
 ---
 

@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import os
 import tempfile
@@ -6,6 +7,7 @@ import pandas as pd
 import pytest
 from openpyxl import Workbook
 
+import dns_benchmark.exporters as exporters
 from dns_benchmark.analysis import BenchmarkAnalyzer
 from dns_benchmark.exporters import (
     CSVExporter,
@@ -41,11 +43,14 @@ def test_excel_pdf_export(tmp_path, sample_results):
     )
     assert excel_path.exists() and excel_path.stat().st_size > 0
 
-    # PDF with success chart
-    PDFExporter.export_results(
-        sample_results, analyzer, str(pdf_path), include_success_chart=True
-    )
-    assert pdf_path.exists() and pdf_path.stat().st_size > 0
+    # PDF only if weasyprint is available
+    if importlib.util.find_spec("weasyprint"):
+        PDFExporter.export_results(
+            sample_results, analyzer, str(pdf_path), include_success_chart=True
+        )
+        assert pdf_path.exists() and pdf_path.stat().st_size > 0
+    else:
+        pytest.skip("weasyprint not installed; skipping PDF export test")
 
 
 def test_generate_latency_chart_for_excel_creates_file(sample_analyzer):
@@ -167,3 +172,20 @@ def test_export_error_statistics_csv(tmp_path, analyzer):
     assert "error_message" in df.columns
     assert "count" in df.columns
     assert len(df) == len(stats)
+
+
+@pytest.mark.skipif(
+    importlib.util.find_spec("weasyprint"),
+    reason="weasyprint installed; skip missing-dep test",
+)
+def test_pdf_exporter_raises_without_weasyprint(
+    sample_results, analyzer, tmp_path, monkeypatch
+):
+    # Force module-level HTML to None to simulate missing weasyprint
+    monkeypatch.setattr(exporters, "HTML", None)
+    pdf_path = tmp_path / "report.pdf"
+
+    with pytest.raises(RuntimeError) as excinfo:
+        exporters.PDFExporter.export_results(sample_results, analyzer, str(pdf_path))
+
+    assert "PDF export requires 'weasyprint'" in str(excinfo.value)

@@ -51,7 +51,7 @@ def cli() -> None:
         print(Fore.GREEN + ascii_art + Style.RESET_ALL)
         print(
             Fore.CYAN
-            + "Part of BuildTools - Developer Tools That Work"
+            + "Part of BuildTools - Network Performance Suite"
             + Style.RESET_ALL
         )
         print(Fore.YELLOW + "🌐 buildtools.net | 📦 1,400+ downloads" + Style.RESET_ALL)
@@ -571,14 +571,17 @@ def benchmark(
                     export_progress.update(1)
 
             if "pdf" in output_formats:
-                PDFExporter.export_results(
-                    results,
-                    analyzer,
-                    str(output_path / f"{base_filename}.pdf"),
-                    include_success_chart=include_charts,
-                )
-                if export_progress:
-                    export_progress.update(1)
+                try:
+                    PDFExporter.export_results(
+                        results,
+                        analyzer,
+                        str(output_path / f"{base_filename}.pdf"),
+                        include_success_chart=include_charts,
+                    )
+                    if export_progress:
+                        export_progress.update(1)
+                except RuntimeError as e:
+                    click.echo(error(f"Error during benchmark: {e}"))
 
             # JSON export now tracked in progress
             if json_output:

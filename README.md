@@ -8,7 +8,7 @@
 
 ```bash
 pip install dns-benchmark-tool
-dns-benchmark benchmark --use-defaults
+dns-benchmark benchmark --use-defaults --formats csv,excel
 ```
 
 ---
@@ -40,7 +40,7 @@ dns-benchmark top
 dns-benchmark compare Cloudflare Google Quad9 --show-details
 
 # Run monitoring for 1 hour with alerts
-dns-benchmark monitoring --use-defaults --interval 30 --duration 3600 \
+dns-benchmark monitoring --use-defaults --formats csv,excel --interval 30 --duration 3600 \
   --alert-latency 150 --alert-failure-rate 5 --output monitor.log
 ```
 
@@ -141,6 +141,14 @@ dns-benchmark monitoring --use-defaults --interval 30 --duration 3600 \
     - [CSV outputs](#csv-outputs)
     - [Excel report](#excel-report)
     - [PDF report](#pdf-report)
+    - [📄 Optional PDF Export](#-optional-pdf-export)
+      - [Install with PDF support](#install-with-pdf-support)
+      - [Usage](#usage)
+    - [⚠️ WeasyPrint Setup (for PDF export)](#️-weasyprint-setup-for-pdf-export)
+      - [🛠 Linux (Debian/Ubuntu)](#-linux-debianubuntu)
+      - [🛠 macOS (Homebrew)](#-macos-homebrew)
+      - [🛠 Windows](#-windows)
+      - [✅ Verify Installation](#-verify-installation)
     - [JSON export](#json-export)
     - [Generate Sample Config](#generate-sample-config)
   - [Performance optimization](#performance-optimization)
@@ -225,7 +233,7 @@ pip install dns-benchmark-tool
 
 ```bash
 # Test default resolvers against popular domains
-dns-benchmark benchmark --use-defaults
+dns-benchmark benchmark --use-defaults --formats csv,excel
 ```
 
 ### View Results
@@ -388,6 +396,7 @@ dns-benchmark benchmark \
 # Detailed analysis
 dns-benchmark benchmark \
   --use-defaults \
+  --formats csv,excel \
   --domain-stats \
   --record-type-stats \
   --error-breakdown \
@@ -450,7 +459,7 @@ dns-benchmark benchmark \
   --use-defaults \
   --dnssec-validate \ # coming soon
   --output migration-report/ \
-  --formats pdf,excel
+  --formats csv,excel
 ```
 
 **Result:** Verify performance and security before migration
@@ -478,7 +487,7 @@ dns-benchmark compare \
 0 0 1 * * dns-benchmark benchmark \
   --use-defaults \
   --output /var/reports/dns/ \
-  --formats pdf,csv \
+  --formats excel,csv \
   --domain-stats \
   --error-breakdown
 ```
@@ -534,7 +543,7 @@ dns-benchmark --help
 
 ```bash
 # Test with defaults (recommended for first time)
-dns-benchmark benchmark --use-defaults
+dns-benchmark benchmark --use-defaults --formats csv,excel
 ```
 
 ---
@@ -545,10 +554,10 @@ dns-benchmark benchmark --use-defaults
 
 ```bash
 # Basic test with progress bars
-dns-benchmark benchmark --use-defaults
+dns-benchmark benchmark --use-defaults --formats csv,excel
 
 # Basic test without progress bars
-dns-benchmark benchmark --use-defaults --quiet
+dns-benchmark benchmark --use-defaults --formats csv,excel --quiet
 
 # Test with custom resolvers and domains
 dns-benchmark benchmark --resolvers data/resolvers.json --domains data/domains.txt
@@ -564,23 +573,25 @@ dns-benchmark benchmark --use-defaults --formats csv
 dns-benchmark benchmark --use-defaults --json --output ./results
 
 # Test specific record types
-dns-benchmark benchmark --use-defaults --record-types A,AAAA,MX
+dns-benchmark benchmark --use-defaults --formats csv,excel --record-types A,AAAA,MX
 
 # Custom output location and formats
 dns-benchmark benchmark \
   --use-defaults \
   --output ./my-results \
-  --formats csv,excel,pdf,json
+  --formats csv,excel
 
 # Include detailed statistics
 dns-benchmark benchmark \
   --use-defaults \
+  --formats csv,excel \
   --record-type-stats \
   --error-breakdown
 
 # High concurrency with retries
 dns-benchmark benchmark \
   --use-defaults \
+  --formats csv,excel \
   --max-concurrent 200 \
   --timeout 3.0 \
   --retries 3
@@ -720,7 +731,7 @@ dns-benchmark compare Cloudflare Google --show-details
 
 # New monitoring commands
 # Start monitoring with default resolvers and sample domains
-dns-benchmark monitoring --use-defaults
+dns-benchmark monitoring --use-defaults 
 # ^ Runs indefinitely, checking every 60s, using built-in resolvers and 5 sample domains
 
 # Monitor with a custom resolver list from JSON
@@ -1275,6 +1286,85 @@ aws.amazon.com
 - Performance charts: latency comparison; optional success rate chart
 - Resolver rankings: ordered by average latency
 - Detailed analysis: technical deep‑dive with percentiles
+
+### 📄 Optional PDF Export
+
+By default, the tool supports **CSV** and **Excel** exports.  
+PDF export requires the extra dependency **weasyprint**, which is not installed automatically to avoid runtime issues on some platforms.
+
+#### Install with PDF support
+
+```bash
+pip install dns-benchmark-tool[pdf]
+```
+
+#### Usage
+
+Once installed, you can request PDF output via the CLI:
+
+```bash
+dns-benchmark --use-defaults --formats pdf --output ./results
+```
+
+If `weasyprint` is not installed and you request PDF output, the CLI will show:
+
+```bash
+[-] Error during benchmark: PDF export requires 'weasyprint'. Install with: pip install dns-benchmark-tool[pdf]
+```
+
+---
+
+### ⚠️ WeasyPrint Setup (for PDF export)
+
+The DNS Benchmark Tool uses **WeasyPrint** to generate PDF reports.  
+If you want PDF export, you need extra system libraries in addition to the Python package.
+
+#### 🛠 Linux (Debian/Ubuntu)
+
+```bash
+sudo apt install python3-pip libpango-1.0-0 libpangoft2-1.0-0 \
+  libharfbuzz-subset0 libjpeg-dev libopenjp2-7-dev libffi-dev
+```
+
+---
+
+#### 🛠 macOS (Homebrew)
+
+```bash
+brew install pango cairo libffi gdk-pixbuf jpeg openjpeg harfbuzz
+```
+
+---
+
+#### 🛠 Windows
+
+Install GTK+ libraries using one of these methods:
+
+- **MSYS2**: [Download MSYS2](https://www.msys2.org/), then run:
+
+  ```bash
+  pacman -S mingw-w64-x86_64-gtk3 mingw-w64-x86_64-libffi
+  ```
+
+- **GTK+ 64‑bit Installer**: [Download GTK+ Runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) and run the installer.
+
+Restart your terminal after installation.
+
+---
+
+#### ✅ Verify Installation
+
+After installing the system libraries, install the Python extra:
+
+```bash
+pip install dns-benchmark-tool[pdf]
+```
+
+Then run:
+
+```bash
+dns-benchmark --use-defaults --formats pdf --output ./results
+```
 
 ### JSON export
 

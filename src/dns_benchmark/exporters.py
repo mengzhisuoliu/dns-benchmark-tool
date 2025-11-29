@@ -10,7 +10,11 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils.dataframe import dataframe_to_rows
-from weasyprint import HTML
+
+try:
+    from weasyprint import HTML
+except ImportError:
+    HTML = None
 
 from dns_benchmark.analysis import BenchmarkAnalyzer
 from dns_benchmark.core import DNSQueryResult
@@ -489,6 +493,11 @@ class PDFExporter:
         output_path: str,
         include_success_chart: bool = False,
     ) -> None:
+        if HTML is None:
+            raise RuntimeError(
+                "PDF export requires 'weasyprint'. Install with: pip install dns-benchmark-tool[pdf]"
+            )
+
         charts_dir = tempfile.mkdtemp()
 
         try:

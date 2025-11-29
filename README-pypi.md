@@ -8,7 +8,7 @@ Part of [BuildTools](https://buildtools.net) - Network Performance Suite
 
 ```bash
 pip install dns-benchmark-tool
-dns-benchmark benchmark --use-defaults
+dns-benchmark benchmark --use-defaults --formats csv,excel
 ```
 
 ---
@@ -132,6 +132,85 @@ dns-benchmark --version
 dns-benchmark --help
 ```
 
+## 📄 Optional PDF Export
+
+By default, the tool supports **CSV** and **Excel** exports.  
+PDF export requires the extra dependency **weasyprint**, which is not installed automatically to avoid runtime issues on some platforms.
+
+### Install with PDF support
+
+```bash
+pip install dns-benchmark-tool[pdf]
+```
+
+### Usage
+
+Once installed, you can request PDF output via the CLI:
+
+```bash
+dns-benchmark --use-defaults --formats pdf --output ./results
+```
+
+If `weasyprint` is not installed and you request PDF output, the CLI will show:
+
+```bash
+[-] Error during benchmark: PDF export requires 'weasyprint'. Install with: pip install dns-benchmark-tool[pdf]
+```
+
+---
+
+## ⚠️ WeasyPrint Setup (for PDF export)
+
+The DNS Benchmark Tool uses **WeasyPrint** to generate PDF reports.  
+If you want PDF export, you need extra system libraries in addition to the Python package.
+
+### 🛠 Linux (Debian/Ubuntu)
+
+```bash
+sudo apt install python3-pip libpango-1.0-0 libpangoft2-1.0-0 \
+  libharfbuzz-subset0 libjpeg-dev libopenjp2-7-dev libffi-dev
+```
+
+---
+
+### 🛠 macOS (Homebrew)
+
+```bash
+brew install pango cairo libffi gdk-pixbuf jpeg openjpeg harfbuzz
+```
+
+---
+
+### 🛠 Windows
+
+Install GTK+ libraries using one of these methods:
+
+- **MSYS2**: [Download MSYS2](https://www.msys2.org/), then run:
+
+  ```bash
+  pacman -S mingw-w64-x86_64-gtk3 mingw-w64-x86_64-libffi
+  ```
+
+- **GTK+ 64‑bit Installer**: [Download GTK+ Runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) and run the installer.
+
+Restart your terminal after installation.
+
+---
+
+### ✅ Verify Installation
+
+After installing the system libraries, install the Python extra:
+
+```bash
+pip install dns-benchmark-tool[pdf]
+```
+
+Then run:
+
+```bash
+dns-benchmark --use-defaults --formats pdf --output ./results
+```
+
 ## Quick usage
 
 ```bash
@@ -152,10 +231,10 @@ dns-benchmark benchmark --resolvers data/resolvers.json --domains data/domains.t
 
 ```bash
 # Basic test with progress bars
-dns-benchmark benchmark --use-defaults
+dns-benchmark benchmark --use-defaults --formats csv,excel
 
 # Basic test without progress bars
-dns-benchmark benchmark --use-defaults --quiet
+dns-benchmark benchmark --use-defaults --formats csv,excel --quiet
 
 # Test with custom resolvers and domains
 dns-benchmark benchmark --resolvers data/resolvers.json --domains data/domains.txt
@@ -171,7 +250,7 @@ dns-benchmark benchmark --use-defaults --formats csv
 dns-benchmark benchmark --use-defaults --json --output ./results
 
 # Test specific record types
-dns-benchmark benchmark --use-defaults --record-types A,AAAA,MX
+dns-benchmark benchmark --use-defaults --formats csv,excel --record-types A,AAAA,MX
 
 # Custom output location and formats
 dns-benchmark benchmark \

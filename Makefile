@@ -1,4 +1,4 @@
-.PHONY: install install-dev uninstall mypy black isort flake8 cov test clean cli-test \
+.PHONY: install install-dev install-pdf uninstall mypy black isort flake8 cov test clean cli-test \
     gpg-check release-patch release-minor release-major release-tag release-tag-dry \
     release-check release-flow release-clean release-build release-info release-status cz-commit cz-changelog cz-bump
 
@@ -10,10 +10,14 @@ install:
 install-dev:
 	pip install .[dev]
 
+#  🔧 Install package with PDF extras (weasyprint)
+install-pdf:
+	pip install .[pdf]
+
 # 🔧 Uninstall package
 uninstall:
 	pip uninstall -y dns-benchmark-tool \
-	dnspython pandas aiohttp click pyfiglet colorama Jinja2 weasyprint openpyxl pyyaml tqdm matplotlib \
+	dnspython pandas aiohttp click pyfiglet colorama Jinja2 openpyxl pyyaml tqdm matplotlib \
     mypy black flake8 autopep8 pytest coverage isort
 
 mypy:

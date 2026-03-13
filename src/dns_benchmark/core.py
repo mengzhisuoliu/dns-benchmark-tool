@@ -140,11 +140,12 @@ class DNSQueryEngine:
                 await self._update_progress()
                 return result
 
-        start_time = time.time()
+        start_time = time.time()  # fallback; overwritten inside semaphore per attempt
 
         for attempt in range(self.max_retries + 1):
             try:
                 async with self.semaphore:
+                    start_time = time.time()
                     resolver = dns.asyncresolver.Resolver()
                     resolver.nameservers = [resolver_ip]
                     resolver.timeout = self.timeout
@@ -234,6 +235,29 @@ class DNSQueryEngine:
                     answers=[],
                     ttl=None,
                     error_message="Non-existent domain",
+                    attempt_number=attempt + 1,
+                    cache_hit=False,
+                    iteration=iteration,
+                )
+                await self._update_progress()
+                return result
+
+            except dns.resolver.NoAnswer:
+                # Blocked/sinkholed domains (e.g. 0.0.0.0 from AdGuard/Pi-hole)
+                # return NOERROR with an empty rrset. This is a valid fast response,
+                # not a failure — do not retry.
+                end_time = time.time()
+                result = DNSQueryResult(
+                    resolver_ip=resolver_ip,
+                    resolver_name=resolver_name,
+                    domain=domain,
+                    record_type=record_type,
+                    start_time=start_time,
+                    end_time=end_time,
+                    latency_ms=(end_time - start_time) * 1000,
+                    status=QueryStatus.SUCCESS,
+                    answers=[],
+                    ttl=None,
                     attempt_number=attempt + 1,
                     cache_hit=False,
                     iteration=iteration,

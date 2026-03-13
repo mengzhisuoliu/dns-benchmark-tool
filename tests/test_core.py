@@ -759,3 +759,78 @@ def test_parse_domain_string_no_dots():
     assert len(result) == 2
     assert "localhost" in result
     assert "example.com" in result
+
+
+@pytest.mark.asyncio
+async def test_query_no_answer_blocked_domain(monkeypatch):
+    """Issue #45: blocked domains (AdGuard/Pi-hole sinkhole) must return SUCCESS, not be retried."""
+    import dns.resolver
+
+    engine = DNSQueryEngine(max_concurrent_queries=1, timeout=5.0, max_retries=2)
+
+    call_count = 0
+
+    async def fake_resolve(self, d, rt, raise_on_no_answer=False):
+        nonlocal call_count
+        call_count += 1
+        raise dns.resolver.NoAnswer()
+
+    monkeypatch.setattr("dns.asyncresolver.Resolver.resolve", fake_resolve)
+
+    result = await engine.query_single(
+        "192.168.1.6", "AdGuard Home", "logs.netflix.com"
+    )
+
+    assert result.status == QueryStatus.SUCCESS
+    assert result.answers == []
+    assert (
+        call_count == 1
+    ), f"resolve() called {call_count} times — blocked domains must not be retried"
+
+
+@pytest.mark.asyncio
+async def test_query_no_answer_latency_not_inflated(monkeypatch):
+    """Issue #45: latency for blocked domains must reflect actual RTT, not retry backoff accumulation."""
+    import asyncio
+
+    import dns.resolver
+
+    engine = DNSQueryEngine(max_concurrent_queries=1, timeout=5.0, max_retries=2)
+
+    async def fake_resolve(self, d, rt, raise_on_no_answer=False):
+        await asyncio.sleep(0.004)  # simulate 4ms RTT, same as reporter's dig output
+        raise dns.resolver.NoAnswer()
+
+    monkeypatch.setattr("dns.asyncresolver.Resolver.resolve", fake_resolve)
+
+    result = await engine.query_single(
+        "192.168.1.6", "AdGuard Home", "logs.netflix.com"
+    )
+
+    assert result.latency_ms < 500, (
+        f"Latency was {result.latency_ms:.1f} ms — expected ~4 ms. "
+        "Retry backoff or semaphore wait is leaking into reported latency."
+    )
+
+
+@pytest.mark.asyncio
+async def test_query_start_time_valid_on_timeout(monkeypatch):
+    """Issue #45: moving start_time inside semaphore must not cause UnboundLocalError on timeout."""
+    import dns.exception
+
+    engine = DNSQueryEngine(max_concurrent_queries=1, timeout=0.1, max_retries=0)
+
+    monkeypatch.setattr(
+        "dns.asyncresolver.Resolver.resolve",
+        lambda self, d, rt, raise_on_no_answer: (_ for _ in ()).throw(
+            dns.exception.Timeout()
+        ),
+    )
+
+    result = await engine.query_single(
+        "192.168.1.6", "AdGuard Home", "logs.netflix.com"
+    )
+
+    assert result.status == QueryStatus.TIMEOUT
+    assert result.start_time > 0
+    assert result.end_time >= result.start_time
